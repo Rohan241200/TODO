@@ -3,6 +3,7 @@ const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
 const path = require("path");
 const format = require("date-fns/format");
+const isValid = require("date-fns/isValid");
 
 const dbPath = path.join(__dirname, "todoApplication.db");
 const app = express();
@@ -67,13 +68,13 @@ const middlerFun = (request, response, next) => {
   }
 
   if (date !== undefined) {
-    const newDate = format(new Date(date), "yyyy-MM-dd");
-    if (newDate !== undefined) {
+    const isvaliddate = isValid(new Date(date));
+    if (isvaliddate) {
+      const newDate = format(new Date(date), "yyyy-MM-dd");
       request.date = newDate;
     } else {
       response.status(400);
       response.send("Invalid Due Date");
-      return;
     }
   }
 
@@ -119,22 +120,26 @@ app.get("/todos/:todoId/", middlerFun, async (request, response) => {
 });
 
 //API 3
-app.get("/agenda/", middlerFun, async (request, response) => {
-  const { date } = request;
-  console.log(date);
-  const getQuery = `
-        SELECT *
-        FROM todo
-        WHERE due_date = '${date}';`;
-  const dbResp = await db.get(getQuery);
-
-  if (dbResp !== undefined) {
-    response.send(convertIntoList(dbResp));
-  } else {
+app.get("/agenda/", async (request, response) => {
+  const { date } = request.query;
+  if (date === undefined) {
     response.status(400);
     response.send("Invalid Due Date");
+  } else {
+    const isValidDate = isValid(new Date(date));
+    if (isValidDate) {
+      const newDate = format(new Date(date), "yyyy-MM-dd");
+      const getQuery = `
+        SELECT *
+        FROM todo
+        WHERE due_date = '${newDate}';`;
+      const dbResp = await db.get(getQuery);
+      response.send(convertIntoList(dbResp));
+    } else {
+      response.status(400);
+      response.send("Invalid Due Date");
+    }
   }
-  response.send(convertIntoList(dbResp));
 });
 
 //API 4
